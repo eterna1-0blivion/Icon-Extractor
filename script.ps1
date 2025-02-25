@@ -99,7 +99,10 @@ function Get-Icons {
 $sourcePath = "C:"
 $sourceExtensions = @('dll', 'exe', 'mun')
 $iconsLimit = 512
-$log = "Output" # ["Output"/"Verbose"/"Debug"]
+$logLevel = "Debug" # ["Output"/"Verbose"/"Debug"]
+
+# Для правильной работы отладки
+if ($logLevel = "Debug") { Set-PSDebug -Trace 0 } else { Set-PSDebug -Off }
 
 # Подготовка выходных папок и лог-файла
 $baseOutputPath = "$PSScriptRoot\out"
@@ -125,7 +128,7 @@ foreach ($path in $sourceFilePaths) {
     if ($logLevel -ne "Output") { Write-Output "Processing: $path" | Tee-Object -FilePath $logFile -Append }
     $extension = [System.IO.Path]::GetExtension($path).TrimStart('.')
     $outputPath = "$baseOutputPath\$extension"
-    Get-Icons -filePath $path -outputFolder $outputPath -maxIcons $iconsLimit -logLevel $log | Tee-Object -FilePath $logFile -Append
+    Get-Icons -filePath $path -outputFolder $outputPath -maxIcons $iconsLimit -logLevel $logLevel
 }
 
 

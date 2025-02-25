@@ -1,5 +1,5 @@
 # author: eterna1_0blivion
-$version = 'v0.4.0'
+$version = 'v0.4.6'
 
 # Некоторые переменные для облегчения работы 
 $theme = '$Host.UI.RawUI.BackgroundColor = "Black"; $Host.UI.RawUI.ForegroundColor = "Gray"; Clear-Host'
@@ -20,6 +20,7 @@ $logLevel = "Debug" # ["Output"/"Verbose"/"Debug"]
 $baseOutputPath = "$PSScriptRoot\out"
 $logFile = "$PSScriptRoot\log.txt"
 $lockObject = [Object]::new()
+
 
 # Для правильной работы отладки
 if ($logLevel -eq "Debug") { Set-PSDebug -Trace 0 } else { Set-PSDebug -Off }

@@ -1,5 +1,5 @@
 # author: eterna1_0blivion
-$version = 'v0.2.6'
+$version = 'v0.2.7'
 
 # Some variables for easy invocation
 $theme = '$Host.UI.RawUI.BackgroundColor = "Black"; $Host.UI.RawUI.ForegroundColor = "Gray"; Clear-Host'
@@ -40,12 +40,11 @@ function Get-Icons {
         [switch]$debugMode
     )
 
-    # Create or clear outputFolder
-    if (Test-Path $outputFolder) {
-        Get-ChildItem -Path $outputFolder -File | Remove-Item -Force -ErrorAction SilentlyContinue
+    # Check folder exist
+    if (-not (Test-Path $outputFolder)) {
+        New-Item -ItemType Directory -Path $outputFolder | Out-Null
     }
-    else { New-Item -ItemType Directory -Path $outputFolder | Out-Null }
-
+    
     $extractedCount = 0
     for ($i = 0; $i -lt $maxIcons; $i++) {
         try {
@@ -61,7 +60,7 @@ function Get-Icons {
                 }
                 catch { Write-Warning "Failed to save icon $i for $filePath : $_" }
             }
-            elseif ($debugMode) { Write-Output "No icon at index $i for $filePath" }
+            elseif ($debugMode) { Write-Debug "No icon at index $i for $filePath" }
         }
         catch { Write-Warning "Error extracting icon $i from $filePath : $_" }
     }
@@ -74,21 +73,29 @@ $sourceExtensions = @('dll', 'exe', 'mun')
 $iconsLimit = 100
 $debug = $False
 
-# Get file paths
+# Process output folder
+$baseOutputPath = "$PSScriptRoot\out"
+if (Test-Path $baseOutputPath) {
+    Get-ChildItem -Path $baseOutputPath -Recurse -File | Remove-Item -Force -ErrorAction SilentlyContinue
+}
+else {
+    New-Item -ItemType Directory -Path $baseOutputPath | Out-Null
+}
+
+# Process file paths
 $sourceFilePaths = New-Object System.Collections.Generic.List[string]
 foreach ($extension in $sourceExtensions) {
     Write-Output "Scanning for `'.$extension`' files..."
     (Get-ChildItem -Path $sourcePath -Filter "*.$extension" -Recurse -Force -ErrorAction SilentlyContinue |
     Select-Object -ExpandProperty FullName) | ForEach-Object { $sourceFilePaths.Add($_) }
 }
-
 Write-Output "Found $($sourceFilePaths.Count) files to process."
 
 # Main
 foreach ($path in $sourceFilePaths) {
     if ($debug) { Write-Output "Processing: $path" }
     $extension = [System.IO.Path]::GetExtension($path).TrimStart('.')
-    $outputPath = "$PSScriptRoot\out\$extension"
+    $outputPath = "$baseOutputPath\$extension"
     Get-Icons -filePath $path -outputFolder $outputPath -maxIcons $iconsLimit -debugMode $debug
 }
 

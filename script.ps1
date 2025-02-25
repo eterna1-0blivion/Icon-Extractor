@@ -21,7 +21,6 @@ $baseOutputPath = "$PSScriptRoot\out"
 $logFile = "$PSScriptRoot\log.txt"
 $lockObject = [Object]::new()
 
-
 # Для правильной работы отладки
 if ($logLevel -eq "Debug") { Set-PSDebug -Trace 0 } else { Set-PSDebug -Off }
 
@@ -44,29 +43,52 @@ Write-Output "Found $($sourceFilePaths.Count) files to process." | Tee-Object -F
 $sourceFilePaths | ForEach-Object -Parallel {
     # Определяем класс IconExtractor внутри блока
     Add-Type -TypeDefinition @"
-    using System;
-    using System.Runtime.InteropServices;
-    using System.Drawing;
-    using System.IO;
-    public class IconExtractor
-    {
-        [DllImport("shell32.dll", CharSet = CharSet.Auto)]
-        public static extern int ExtractIconEx(string lpszFile, int nIconIndex, IntPtr[] phiconLarge, IntPtr[] phiconSmall, int nIcons);
+using System;
+using System.Runtime.InteropServices;
+using System.Drawing;
+using System.IO;
+public class IconExtractor
+{
+    [DllImport("shell32.dll", CharSet = CharSet.Auto)]
+    public static extern int ExtractIconEx(string lpszFile, int nIconIndex, IntPtr[] phiconLarge, IntPtr[] phiconSmall, int nIcons);
 
-        [DllImport("user32.dll")]
-        public static extern bool DestroyIcon(IntPtr hIcon);
-        
-        public static Icon Extract(string path, int index)
-        {
-            IntPtr[] largeIcon = new IntPtr[1];
-            ExtractIconEx(path, index, largeIcon, null, 1);
-            if (largeIcon[0] == IntPtr.Zero) return null;
-            Icon icon = (Icon)Icon.FromHandle(largeIcon[0]).Clone();
-            DestroyIcon(largeIcon[0]);
-            return icon;
+    [DllImport("user32.dll")]
+    public static extern bool DestroyIcon(IntPtr hIcon);
+    
+    public static Icon Extract(string path, int index)
+    {
+        IntPtr[] largeIcon = new IntPtr[1];
+        ExtractIconEx(path, index, largeIcon, null, 1);
+        if (largeIcon[0] == IntPtr.Zero) return null;
+        Icon icon = (Icon)Icon.FromHandle(largeIcon[0]).Clone();
+        DestroyIcon(largeIcon[0]);
+        return icon;
+    }
+}
+"@ -Language CSharp -ReferencedAssemblies "System.Drawing.Common" -ErrorAction SilentlyContinue
+
+    # Функция для синхронизированной записи в лог и консоль
+    function Write-Log {
+        param (
+            [string]$Message,
+            [ValidateSet("Output", "Warning")]
+            [string]$Type = "Output",
+            [string]$LogFile,
+            [object]$LockObject
+        )
+        [System.Threading.Monitor]::Enter($LockObject)
+        try {
+            if ($Type -eq "Output") {
+                Write-Output $Message | Tee-Object -FilePath $LogFile -Append
+            }
+            elseif ($Type -eq "Warning") {
+                Write-Warning $Message | Tee-Object -FilePath $LogFile -Append -WarningAction Continue
+            }
+        }
+        finally {
+            [System.Threading.Monitor]::Exit($LockObject)
         }
     }
-"@ -Language CSharp -ReferencedAssemblies "System.Drawing.Common" -ErrorAction SilentlyContinue
 
     # Определяем функцию Get-Icons внутри блока
     function Get-Icons {
@@ -97,27 +119,14 @@ $sourceFilePaths | ForEach-Object -Parallel {
             }
             catch {
                 if ($logLevel -eq "Debug") {
-                    $message = "Error checking index $i for $filePath : $_"
-                    [System.Threading.Monitor]::Enter($lockObject)
-                    try {
-                        Write-Warning $message | Tee-Object -FilePath $logFile -Append
-                    }
-                    finally {
-                        [System.Threading.Monitor]::Exit($lockObject)
-                    }
+                    Write-Log -Message "Error checking index $i for $filePath : $_" -Type "Warning" -LogFile $logFile -LockObject $lockObject
                 }
             }
         }
+
         # Если иконок нет на первых трёх индексах, пропускаем файл
         if (-not $hasIcons) {
-            $message = "Skipped: $filePath (no icons detected in first 3 indexes)"
-            [System.Threading.Monitor]::Enter($lockObject)
-            try {
-                Write-Output $message | Tee-Object -FilePath $logFile -Append
-            }
-            finally {
-                [System.Threading.Monitor]::Exit($lockObject)
-            }
+            Write-Log -Message "Skipped: $filePath (no icons detected in first 3 indexes)" -Type "Output" -LogFile $logFile -LockObject $lockObject
             return
         }
 
@@ -135,86 +144,37 @@ $sourceFilePaths | ForEach-Object -Parallel {
                         $icon.Save($fileStream)
                         $fileStream.Close()
                         $extractedCount++
-                        $message = "Saved: $iconPath"
-                        [System.Threading.Monitor]::Enter($lockObject)
-                        try {
-                            Write-Output $message | Tee-Object -FilePath $logFile -Append
-                        }
-                        finally {
-                            [System.Threading.Monitor]::Exit($lockObject)
-                        }
+                        Write-Log -Message "Saved: $iconPath" -Type "Output" -LogFile $logFile -LockObject $lockObject
                     }
                     catch {
-                        $message = "Failed to save icon $i for $filePath : $_"
-                        [System.Threading.Monitor]::Enter($lockObject)
-                        try {
-                            Write-Warning $message | Tee-Object -FilePath $logFile -Append
-                        }
-                        finally {
-                            [System.Threading.Monitor]::Exit($lockObject)
-                        }
+                        Write-Log -Message "Failed to save icon $i for $filePath : $_" -Type "Warning" -LogFile $logFile -LockObject $lockObject
                     }
                 }
                 else {
                     $consecutiveNulls++
                     if ($logLevel -eq "Debug") {
-                        $message = "No icon at index $i for $filePath"
-                        [System.Threading.Monitor]::Enter($lockObject)
-                        try {
-                            Write-Output $message | Tee-Object -FilePath $logFile -Append
-                        }
-                        finally {
-                            [System.Threading.Monitor]::Exit($lockObject)
-                        }
+                        Write-Log -Message "No icon at index $i for $filePath" -Type "Output" -LogFile $logFile -LockObject $lockObject
                     }
                     if ($consecutiveNulls -ge 3) {
                         if ($logLevel -eq "Verbose" -or $logLevel -eq "Debug") {
-                            $message = "Stopped at index $i for $filePath (3 consecutive nulls)"
-                            [System.Threading.Monitor]::Enter($lockObject)
-                            try {
-                                Write-Output $message | Tee-Object -FilePath $logFile -Append
-                            }
-                            finally {
-                                [System.Threading.Monitor]::Exit($lockObject)
-                            }
+                            Write-Log -Message "Stopped at index $i for $filePath (3 consecutive nulls)" -Type "Output" -LogFile $logFile -LockObject $lockObject
                         }
                         break
                     }
                 }
             }
             catch {
-                $message = "Error extracting icon $i from $filePath : $_"
-                [System.Threading.Monitor]::Enter($lockObject)
-                try {
-                    Write-Warning $message | Tee-Object -FilePath $logFile -Append
-                }
-                finally {
-                    [System.Threading.Monitor]::Exit($lockObject)
-                }
+                Write-Log -Message "Error extracting icon $i from $filePath : $_" -Type "Warning" -LogFile $logFile -LockObject $lockObject
                 $consecutiveNulls++
                 if ($consecutiveNulls -ge 3) {
                     if ($logLevel -eq "Verbose" -or $logLevel -eq "Debug") {
-                        $message = "Stopped at index $i for $filePath (3 consecutive nulls after error)"
-                        [System.Threading.Monitor]::Enter($lockObject)
-                        try {
-                            Write-Output $message | Tee-Object -FilePath $logFile -Append
-                        }
-                        finally {
-                            [System.Threading.Monitor]::Exit($lockObject)
-                        }
+                        Write-Log -Message "Stopped at index $i for $filePath (3 consecutive nulls after error)" -Type "Output" -LogFile $logFile -LockObject $lockObject
                     }
                     break
                 }
             }
         }
-        $message = "Extracted $extractedCount icons from $filePath"
-        [System.Threading.Monitor]::Enter($lockObject)
-        try {
-            Write-Output $message | Tee-Object -FilePath $logFile -Append
-        }
-        finally {
-            [System.Threading.Monitor]::Exit($lockObject)
-        }
+        Write-Log -Message "Extracted $extractedCount icons from $filePath" -Type "Output" -LogFile $logFile -LockObject $lockObject
     }
 
     # Передаём внешние переменные

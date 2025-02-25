@@ -42,7 +42,8 @@ function Get-Icons {
         [string]$filePath,
         [string]$outputFolder,
         [int]$maxIcons,
-        [switch]$debugMode
+        [ValidateSet("Output", "Verbose", "Debug")]
+        [string]$logLevel
     )
 
     # Создаём выходные папки, если их нет
@@ -61,7 +62,7 @@ function Get-Icons {
             }
         }
         catch {
-            if ($debugMode) { Write-Debug "Error checking index $i for $filePath : $_" }
+            if ($logLevel -eq "Debug") { Write-Debug "Error checking index $i for $filePath : $_" }
         }
     }
 
@@ -87,7 +88,7 @@ function Get-Icons {
                 }
                 catch { Write-Warning "Failed to save icon $i for $filePath : $_" }
             }
-            elseif ($debugMode) { Write-Debug "No icon at index $i for $filePath" }
+            elseif ($logLevel -eq "Debug") { Write-Debug "No icon at index $i for $filePath" }
         }
         catch { Write-Warning "Error extracting icon $i from $filePath : $_" }
     }
@@ -98,10 +99,14 @@ function Get-Icons {
 $sourcePath = "C:"
 $sourceExtensions = @('dll', 'exe', 'mun')
 $iconsLimit = 512
-$debug = $True
+$log = "Output" # ["Output"/"Verbose"/"Debug"]
 
-# Подготовка выходных папок (один раз перед обработкой)
+# Подготовка выходных папок и лог-файла
 $baseOutputPath = "$PSScriptRoot\out"
+$logFile = "$PSScriptRoot\log.txt"
+
+# Очистка логов и выходных папок
+if (Test-Path $logFile) { Remove-Item $logFile -Force }
 if (Test-Path $baseOutputPath) {
     Get-ChildItem -Path $baseOutputPath -Recurse -File | Remove-Item -Force -ErrorAction SilentlyContinue
 }
@@ -109,18 +114,18 @@ if (Test-Path $baseOutputPath) {
 # Определение нужных файлов
 $sourceFilePaths = New-Object System.Collections.Generic.List[string]
 foreach ($extension in $sourceExtensions) {
-    Write-Output "Scanning for `'.$extension`' files..."
+    Write-Output "Scanning for `'.$extension`' files..." | Tee-Object -FilePath $logFile -Append
     (Get-ChildItem -Path $sourcePath -Filter "*.$extension" -Recurse -Force -ErrorAction SilentlyContinue |
     Select-Object -ExpandProperty FullName) | ForEach-Object { $sourceFilePaths.Add($_) }
 }
-Write-Output "Found $($sourceFilePaths.Count) files to process."
+Write-Output "Found $($sourceFilePaths.Count) files to process." | Tee-Object -FilePath $logFile -Append
 
 # Обработка файлов
 foreach ($path in $sourceFilePaths) {
-    Write-Verbose "Processing: $path"
+    if ($logLevel -ne "Output") { Write-Output "Processing: $path" | Tee-Object -FilePath $logFile -Append }
     $extension = [System.IO.Path]::GetExtension($path).TrimStart('.')
     $outputPath = "$baseOutputPath\$extension"
-    Get-Icons -filePath $path -outputFolder $outputPath -maxIcons $iconsLimit -debugMode $debug
+    Get-Icons -filePath $path -outputFolder $outputPath -maxIcons $iconsLimit -logLevel $log | Tee-Object -FilePath $logFile -Append
 }
 
 

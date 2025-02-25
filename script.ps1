@@ -20,13 +20,18 @@ public class IconExtractor
 {
     [DllImport("shell32.dll", CharSet = CharSet.Auto)]
     public static extern int ExtractIconEx(string lpszFile, int nIconIndex, IntPtr[] phiconLarge, IntPtr[] phiconSmall, int nIcons);
+
+    [DllImport("user32.dll")]
+    public static extern bool DestroyIcon(IntPtr hIcon);
     
     public static Icon Extract(string path, int index)
     {
         IntPtr[] largeIcon = new IntPtr[1];
         ExtractIconEx(path, index, largeIcon, null, 1);
         if (largeIcon[0] == IntPtr.Zero) return null;
-        return (Icon)Icon.FromHandle(largeIcon[0]).Clone();
+        Icon icon = (Icon)Icon.FromHandle(largeIcon[0]).Clone();
+        DestroyIcon(largeIcon[0]); // Освобождаем handle
+        return icon;
     }
 }
 "@ -Language CSharp -ReferencedAssemblies "System.Drawing.Common"

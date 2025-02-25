@@ -43,7 +43,8 @@ function Get-Icons {
         [string]$outputFolder,
         [int]$maxIcons,
         [ValidateSet("Output", "Verbose", "Debug")]
-        [string]$logLevel
+        [string]$logLevel,
+        [string]$logFile
     )
 
     # Создаём выходные папки, если их нет
@@ -126,6 +127,7 @@ function Get-Icons {
 # Настройки
 $sourcePath = "C:"
 $sourceExtensions = @('dll', 'exe', 'mun')
+$parallelThreads = 16
 $iconsLimit = 512
 $logLevel = "Debug" # ["Output"/"Verbose"/"Debug"]
 
@@ -151,12 +153,18 @@ foreach ($extension in $sourceExtensions) {
 }
 Write-Output "Found $($sourceFilePaths.Count) files to process." | Tee-Object -FilePath $logFile -Append
 
-# Обработка файлов
-foreach ($path in $sourceFilePaths) {
+# Параллельная обработка файлов
+$sourceFilePaths | ForEach-Object -Parallel {
+    $logFile = $using:logFile
+    $baseOutputPath = $using:baseOutputPath
+    $iconsLimit = $using:iconsLimit
+    $logLevel = $using:logLevel
+
+    $path = $_
     $extension = [System.IO.Path]::GetExtension($path).TrimStart('.')
     $outputPath = "$baseOutputPath\$extension"
-    Get-Icons -filePath $path -outputFolder $outputPath -maxIcons $iconsLimit -logLevel $logLevel
-}
+    & $using:Get-Icons -filePath $path -outputFolder $outputPath -maxIcons $iconsLimit -logLevel $logLevel -logFile $logFile
+} -ThrottleLimit $parallelThreads
 
 
 # Notification of successfully finished work

@@ -37,7 +37,7 @@ function Get-Icons {
         [string]$filePath,
         [string]$outputFolder,
         [int]$maxIcons,
-        [switch]$debugMode = $false
+        [switch]$debugMode
     )
 
     # Create or clear outputFolder
@@ -72,6 +72,7 @@ function Get-Icons {
 $sourcePath = "C:\Windows\System32"
 $sourceExtensions = @('dll', 'exe', 'mun')
 $iconsLimit = 100
+$debug = $False
 
 # Get file paths
 $sourceFilePaths = New-Object System.Collections.Generic.List[string]

@@ -1,5 +1,5 @@
 # author: eterna1_0blivion
-$version = 'v0.3.0'
+$version = 'v0.3.2'
 
 # Некоторые переменные для облегчения работы 
 $theme = '$Host.UI.RawUI.BackgroundColor = "Black"; $Host.UI.RawUI.ForegroundColor = "Gray"; Clear-Host'
@@ -62,13 +62,16 @@ function Get-Icons {
             }
         }
         catch {
-            if ($logLevel -eq "Debug") { Write-Debug "Error checking index $i for $filePath : $_" }
+            if ($logLevel -eq "Debug") {
+                Write-Warning "Error checking index $i for $filePath : $_" |
+                Tee-Object -FilePath $logFile -Append
+            }
         }
     }
 
     # Если иконок нет на первых трёх индексах, пропускаем файл
     if (-not $hasIcons) {
-        Write-Output "Skipped: $filePath (no icons detected)"
+        Write-Output "Skipped: $filePath (no icons detected)" | Tee-Object -FilePath $logFile -Append
         return
     }
 
@@ -84,15 +87,24 @@ function Get-Icons {
                     $icon.Save($fileStream)
                     $fileStream.Close()
                     $extractedCount++
-                    Write-Output "Saved: $iconPath"
+                    Write-Output "Saved: $iconPath" | Tee-Object -FilePath $logFile -Append
                 }
-                catch { Write-Warning "Failed to save icon $i for $filePath : $_" }
+                catch {
+                    Write-Warning "Failed to save icon $i for $filePath : $_" |
+                    Tee-Object -FilePath $logFile -Append
+                }
             }
-            elseif ($logLevel -eq "Debug") { Write-Debug "No icon at index $i for $filePath" }
+            elseif ($logLevel -eq "Debug") {
+                Write-Output "No icon at index $i for $filePath" |
+                Tee-Object -FilePath $logFile -Append
+            }
         }
-        catch { Write-Warning "Error extracting icon $i from $filePath : $_" }
+        catch {
+            Write-Warning "Error extracting icon $i from $filePath : $_" |
+            Tee-Object -FilePath $logFile -Append
+        }
     }
-    Write-Output "Extracted $extractedCount icons from $filePath"
+    Write-Output "Extracted $extractedCount icons from $filePath" | Tee-Object -FilePath $logFile -Append
 }
 
 # Настройки
@@ -125,7 +137,6 @@ Write-Output "Found $($sourceFilePaths.Count) files to process." | Tee-Object -F
 
 # Обработка файлов
 foreach ($path in $sourceFilePaths) {
-    if ($logLevel -ne "Output") { Write-Output "Processing: $path" | Tee-Object -FilePath $logFile -Append }
     $extension = [System.IO.Path]::GetExtension($path).TrimStart('.')
     $outputPath = "$baseOutputPath\$extension"
     Get-Icons -filePath $path -outputFolder $outputPath -maxIcons $iconsLimit -logLevel $logLevel
@@ -133,5 +144,5 @@ foreach ($path in $sourceFilePaths) {
 
 
 # Notification of successfully finished work
-Write-Host "`nThe script completed successfully." -ForegroundColor Green
+Write-Host "`nThe script completed successfully." -ForegroundColor Green | Tee-Object -FilePath $logFile -Append
 Invoke-Expression $exit

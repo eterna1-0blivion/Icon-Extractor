@@ -131,12 +131,12 @@ $parallelThreads = 16
 $iconsLimit = 512
 $logLevel = "Debug" # ["Output"/"Verbose"/"Debug"]
 
-# Для правильной работы отладки
-if ($logLevel -eq "Debug") { Set-PSDebug -Trace 0 } else { Set-PSDebug -Off }
-
 # Подготовка выходных папок и лог-файла
 $baseOutputPath = "$PSScriptRoot\out"
 $logFile = "$PSScriptRoot\log.txt"
+
+# Для правильной работы отладки
+if ($logLevel -eq "Debug") { Set-PSDebug -Trace 0 } else { Set-PSDebug -Off }
 
 # Очистка логов и выходных папок
 if (Test-Path $logFile) { Remove-Item $logFile -Force }
@@ -167,6 +167,6 @@ $sourceFilePaths | ForEach-Object -Parallel {
 } -ThrottleLimit $parallelThreads
 
 
-# Notification of successfully finished work
+# Уведомляем пользователя о завершении работы (Нажми Enter)
 Write-Host "`nThe script completed successfully." -ForegroundColor Green | Tee-Object -FilePath $logFile -Append
 Invoke-Expression $exit

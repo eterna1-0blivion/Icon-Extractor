@@ -42,7 +42,7 @@ Write-Output "Found $($sourceFilePaths.Count) files to process." | Tee-Object -F
 
 # Параллельная обработка файлов
 $sourceFilePaths | ForEach-Object -Parallel {
-    # Вызов ExtractIconEx при помощи C#
+    # Определяем класс IconExtractor внутри блока
     Add-Type -TypeDefinition @"
     using System;
     using System.Runtime.InteropServices;
@@ -68,7 +68,7 @@ $sourceFilePaths | ForEach-Object -Parallel {
     }
 "@ -Language CSharp -ReferencedAssemblies "System.Drawing.Common"
 
-    # Основная функция
+    # Определяем функцию Get-Icons внутри блока
     function Get-Icons {
         param (
             [string]$filePath,

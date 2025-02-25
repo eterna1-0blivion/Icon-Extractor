@@ -1,16 +1,16 @@
 # author: eterna1_0blivion
-$version = 'v0.2.8'
+$version = 'v0.2.9'
 
-# Some variables for easy invocation
+# Некоторые переменные для облегчения работы 
 $theme = '$Host.UI.RawUI.BackgroundColor = "Black"; $Host.UI.RawUI.ForegroundColor = "Gray"; Clear-Host'
 $exit = 'Read-Host -Prompt "Press Enter to exit"; Break'
 
-# Set title, theme and display a greeting
+# Устанавливаем заголовок консоли, меняем тему и выводим первую строку
 $Host.UI.RawUI.WindowTitle = "Icons Extractor ($version)"
 Invoke-Expression $theme
 Write-Host "`nScript running..." -ForegroundColor White
 
-# Add a C# code
+# Вызов ExtractIconEx при помощи C#
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
@@ -31,7 +31,7 @@ public class IconExtractor
 }
 "@ -Language CSharp -ReferencedAssemblies "System.Drawing.Common"
 
-# Main function
+# Основаня функция
 function Get-Icons {
     param (
         [string]$filePath,
@@ -40,9 +40,30 @@ function Get-Icons {
         [switch]$debugMode
     )
 
-    # Check folder exist
+    # Проверяем существование папки
     if (-not (Test-Path $outputFolder)) {
         New-Item -ItemType Directory -Path $outputFolder | Out-Null
+    }
+
+    # Предварительная проверка первых трёх индексов
+    $hasIcons = $false
+    for ($i = 0; $i -lt [math]::Min(3, $maxIcons); $i++) {
+        try {
+            $icon = [IconExtractor]::Extract($filePath, $i)
+            if ($null -ne $icon) {
+                $hasIcons = $true
+                break
+            }
+        }
+        catch {
+            if ($debugMode) { Write-Debug "Error checking index $i for $filePath : $_" }
+        }
+    }
+
+    # Если иконок нет на первых трёх индексах, пропускаем файл
+    if (-not $hasIcons) {
+        Write-Output "Skipped: $filePath (no icons detected)"
+        return
     }
     
     $extractedCount = 0
@@ -67,13 +88,13 @@ function Get-Icons {
     Write-Output "Extracted $extractedCount icons from $filePath"
 }
 
-# Settings
+# Настройки
 $sourcePath = "C:"
 $sourceExtensions = @('dll', 'exe', 'mun')
 $iconsLimit = 512
-$debug = $False
+$debug = $True
 
-# Process output folder
+# Подготовка выходных папок (один раз перед обработкой)
 $baseOutputPath = "$PSScriptRoot\out"
 if (Test-Path $baseOutputPath) {
     Get-ChildItem -Path $baseOutputPath -Recurse -File | Remove-Item -Force -ErrorAction SilentlyContinue
@@ -82,7 +103,7 @@ else {
     New-Item -ItemType Directory -Path $baseOutputPath | Out-Null
 }
 
-# Process file paths
+# Определение нужных файлов
 $sourceFilePaths = New-Object System.Collections.Generic.List[string]
 foreach ($extension in $sourceExtensions) {
     Write-Output "Scanning for `'.$extension`' files..."
@@ -91,7 +112,7 @@ foreach ($extension in $sourceExtensions) {
 }
 Write-Output "Found $($sourceFilePaths.Count) files to process."
 
-# Main
+# Обработка файлов
 foreach ($path in $sourceFilePaths) {
     Write-Verbose "Processing: $path"
     $extension = [System.IO.Path]::GetExtension($path).TrimStart('.')

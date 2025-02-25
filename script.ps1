@@ -30,7 +30,7 @@ public class IconExtractor
         ExtractIconEx(path, index, largeIcon, null, 1);
         if (largeIcon[0] == IntPtr.Zero) return null;
         Icon icon = (Icon)Icon.FromHandle(largeIcon[0]).Clone();
-        DestroyIcon(largeIcon[0]); // Освобождаем handle
+        DestroyIcon(largeIcon[0]);
         return icon;
     }
 }
@@ -77,12 +77,12 @@ function Get-Icons {
 
     # Полная обработка файла с динамической остановкой
     $extractedCount = 0
-    $consecutiveNulls = 0  # Счётчик последовательных пустых индексов
+    $consecutiveNulls = 0
     for ($i = 0; $i -lt $maxIcons; $i++) {
         try {
             $icon = [IconExtractor]::Extract($filePath, $i)
             if ($null -ne $icon) {
-                $consecutiveNulls = 0  # Сбрасываем счётчик при нахождении иконки
+                $consecutiveNulls = 0
                 $iconPath = Join-Path -Path $outputFolder -ChildPath "$(Split-Path -Leaf $filePath)_icon_$i.ico"
                 try {
                     $fileStream = [System.IO.File]::OpenWrite($iconPath)
@@ -97,11 +97,10 @@ function Get-Icons {
                 }
             }
             else {
-                $consecutiveNulls++  # Увеличиваем счётчик пустых индексов
+                $consecutiveNulls++
                 if ($logLevel -eq "Debug") {
                     Write-Output "No icon at index $i for $filePath" | Tee-Object -FilePath $logFile -Append
                 }
-                # Прерываем цикл, если нашли три пустых индекса подряд
                 if ($consecutiveNulls -ge 3) {
                     if ($logLevel -eq "Verbose" -or $logLevel -eq "Debug") {
                         Write-Output "Stopped at index $i for $filePath (3 consecutive nulls)" | Tee-Object -FilePath $logFile -Append
@@ -112,7 +111,7 @@ function Get-Icons {
         }
         catch {
             Write-Warning "Error extracting icon $i from $filePath : $_" | Tee-Object -FilePath $logFile -Append
-            $consecutiveNulls++  # Ошибка тоже считается "пустым" индексом
+            $consecutiveNulls++
             if ($consecutiveNulls -ge 3) {
                 if ($logLevel -eq "Verbose" -or $logLevel -eq "Debug") {
                     Write-Output "Stopped at index $i for $filePath (3 consecutive nulls after error)" | Tee-Object -FilePath $logFile -Append

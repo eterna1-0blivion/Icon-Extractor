@@ -36,7 +36,7 @@ public class IconExtractor
 }
 "@ -Language CSharp -ReferencedAssemblies "System.Drawing.Common"
 
-# Основаня функция
+# Основная функция
 function Get-Icons {
     param (
         [string]$filePath,
@@ -114,7 +114,7 @@ $iconsLimit = 512
 $logLevel = "Debug" # ["Output"/"Verbose"/"Debug"]
 
 # Для правильной работы отладки
-if ($logLevel = "Debug") { Set-PSDebug -Trace 0 } else { Set-PSDebug -Off }
+if ($logLevel -eq "Debug") { Set-PSDebug -Trace 0 } else { Set-PSDebug -Off }
 
 # Подготовка выходных папок и лог-файла
 $baseOutputPath = "$PSScriptRoot\out"
@@ -130,7 +130,7 @@ if (Test-Path $baseOutputPath) {
 $sourceFilePaths = New-Object System.Collections.Generic.List[string]
 foreach ($extension in $sourceExtensions) {
     Write-Output "Scanning for `'.$extension`' files..." | Tee-Object -FilePath $logFile -Append
-    (Get-ChildItem -Path $sourcePath -Filter "*.$extension" -Recurse -Force -ErrorAction SilentlyContinue |
+    (Get-ChildItem -Path $sourcePath -Filter "*.$extension" -Recurse -Force -ErrorAction SilentlyContinue | 
     Select-Object -ExpandProperty FullName) | ForEach-Object { $sourceFilePaths.Add($_) }
 }
 Write-Output "Found $($sourceFilePaths.Count) files to process." | Tee-Object -FilePath $logFile -Append

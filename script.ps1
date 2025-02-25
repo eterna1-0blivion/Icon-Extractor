@@ -1,5 +1,5 @@
 # author: eterna1_0blivion
-$version = 'v0.2.7'
+$version = 'v0.2.8'
 
 # Some variables for easy invocation
 $theme = '$Host.UI.RawUI.BackgroundColor = "Black"; $Host.UI.RawUI.ForegroundColor = "Gray"; Clear-Host'
@@ -68,9 +68,9 @@ function Get-Icons {
 }
 
 # Settings
-$sourcePath = "C:\Windows\System32"
+$sourcePath = "C:"
 $sourceExtensions = @('dll', 'exe', 'mun')
-$iconsLimit = 100
+$iconsLimit = 512
 $debug = $False
 
 # Process output folder
@@ -93,7 +93,7 @@ Write-Output "Found $($sourceFilePaths.Count) files to process."
 
 # Main
 foreach ($path in $sourceFilePaths) {
-    if ($debug) { Write-Output "Processing: $path" }
+    Write-Verbose "Processing: $path"
     $extension = [System.IO.Path]::GetExtension($path).TrimStart('.')
     $outputPath = "$baseOutputPath\$extension"
     Get-Icons -filePath $path -outputFolder $outputPath -maxIcons $iconsLimit -debugMode $debug

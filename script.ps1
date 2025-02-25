@@ -17,11 +17,10 @@ $sourceExtensions = @('dll', 'exe', 'mun')
 $parallelThreads = 16
 $iconsLimit = 512
 $logLevel = "Debug" # ["Output"/"Verbose"/"Debug"]
-
-# Подготовка выходных папок и лог-файла
 $baseOutputPath = "$PSScriptRoot\out"
 $logFile = "$PSScriptRoot\log.txt"
-$lockObject = [System.Threading.Monitor]::new() # Объект для синхронизации
+$lockObject = [Object]::new()
+
 
 # Для правильной работы отладки
 if ($logLevel -eq "Debug") { Set-PSDebug -Trace 0 } else { Set-PSDebug -Off }

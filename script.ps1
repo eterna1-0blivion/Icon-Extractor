@@ -45,7 +45,7 @@ function Get-Icons {
         [switch]$debugMode
     )
 
-    # Проверяем существование папки
+    # Создаём выходные папки, если их нет
     if (-not (Test-Path $outputFolder)) {
         New-Item -ItemType Directory -Path $outputFolder | Out-Null
     }
@@ -70,7 +70,8 @@ function Get-Icons {
         Write-Output "Skipped: $filePath (no icons detected)"
         return
     }
-    
+
+    # Полная обработка файла
     $extractedCount = 0
     for ($i = 0; $i -lt $maxIcons; $i++) {
         try {
@@ -103,9 +104,6 @@ $debug = $True
 $baseOutputPath = "$PSScriptRoot\out"
 if (Test-Path $baseOutputPath) {
     Get-ChildItem -Path $baseOutputPath -Recurse -File | Remove-Item -Force -ErrorAction SilentlyContinue
-}
-else {
-    New-Item -ItemType Directory -Path $baseOutputPath | Out-Null
 }
 
 # Определение нужных файлов

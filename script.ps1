@@ -1,5 +1,5 @@
 # author: eterna1_0blivion
-$version = 'v0.2.0'
+$version = 'v0.2.5'
 
 # Some variables for easy invocation
 $theme = '$Host.UI.RawUI.BackgroundColor = "Black"; $Host.UI.RawUI.ForegroundColor = "Gray"; Clear-Host'
@@ -36,54 +36,59 @@ function Get-Icons {
     param (
         [string]$filePath,
         [string]$outputFolder,
-        [int]$maxIcons = 512
+        [int]$maxIcons
     )
 
-    if (!(Test-Path $outputFolder)) {
+    if (-not (Test-Path $outputFolder)) {
         New-Item -ItemType Directory -Path $outputFolder | Out-Null
     }
     
+    $extractedCount = 0
     for ($i = 0; $i -lt $maxIcons; $i++) {
         try {
             $icon = [IconExtractor]::Extract($filePath, $i)
             if ($null -ne $icon) {
                 $iconPath = Join-Path -Path $outputFolder -ChildPath "$(Split-Path -Leaf $filePath)_icon_$i.ico"
-                $fileStream = [System.IO.File]::OpenWrite($iconPath)
-                $icon.Save($fileStream)
-                $fileStream.Close()
-                Write-Output "Saved: $iconPath"
+                try {
+                    $fileStream = [System.IO.File]::OpenWrite($iconPath)
+                    $icon.Save($fileStream)
+                    $fileStream.Close()
+                    $extractedCount++
+                    Write-Output "Saved: $iconPath"
+                }
+                catch { Write-Warning "Failed to save icon $i for $filePath : $_" }
             }
+            else { Write-Output "No icon at index $i for $filePath" }
         }
-        catch {
-            Write-Output "Failed to extract from: $filePath (Index: $i)"
-        }
+        catch { Write-Warning "Error extracting icon $i from $filePath : $_" }
     }
+    Write-Output "Extracted $extractedCount icons from $filePath"
 }
 
+# Sttings
+$sourcePath = "C:\Windows\System32"
+$sourceExtensions = @('dll', 'exe', 'mun')
+$iconsLimit = 100
 
-# Custom settings
-$sourcePath = "C:"
-$sourceExtensions = @(
-    'dll',
-    'exe',
-    'mun'
-)
-
-# Auto variables
+# Get file paths
 $sourceFilePaths = New-Object System.Collections.Generic.List[string]
 foreach ($extension in $sourceExtensions) {
-    (Get-ChildItem -Path "$sourcePath" -Filter "*.$extension" -Recurse -Force -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName) | ForEach-Object { $sourceFilePaths.Add($_) }
+    Write-Output "Scanning for `'.$extension`' files..."
+    (Get-ChildItem -Path $sourcePath -Filter "*.$extension" -Recurse -Force -ErrorAction SilentlyContinue | 
+    Select-Object -ExpandProperty FullName) | ForEach-Object { $sourceFilePaths.Add($_) }
 }
 
-# Use a function
+Write-Output "Found $($sourceFilePaths.Count) files to process."
+
+# Main
 foreach ($path in $sourceFilePaths) {
-    $extension = $path -replace '^.*(?=.{3}$)'
-    $outputPath = "$PSScriptRoot\out\$extension" ?? "$PSScriptRoot\out\other"
-    Get-Icons -filePath $path -outputFolder $outputPath
+    Write-Output "Processing: $path"
+    $extension = [System.IO.Path]::GetExtension($path).TrimStart('.')
+    $outputPath = "$PSScriptRoot\out\$extension"
+    Get-Icons -filePath $path -outputFolder $outputPath -maxIcons $iconsLimit
 }
-
 
 
 # Notification of successfully finished work
 Write-Host "`nThe script completed successfully." -ForegroundColor Green
-#Invoke-Expression $exit
+Invoke-Expression $exit

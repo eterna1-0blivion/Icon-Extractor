@@ -1,5 +1,5 @@
 # author: eterna1_0blivion
-$version = 'v0.4.6'
+$version = 'v0.5.0'
 
 # Некоторые предустановки
 $theme = '$Host.UI.RawUI.BackgroundColor = "Black"; $Host.UI.RawUI.ForegroundColor = "Gray"; Clear-Host'

@@ -1,7 +1,7 @@
 # author: eterna1_0blivion
 $version = 'v0.4.6'
 
-# Некоторые переменные для облегчения работы 
+# Некоторые предустановки
 $theme = '$Host.UI.RawUI.BackgroundColor = "Black"; $Host.UI.RawUI.ForegroundColor = "Gray"; Clear-Host'
 $exit = 'Read-Host -Prompt "Press Enter to exit"; Break'
 
@@ -41,7 +41,7 @@ Write-Output "Found $($sourceFilePaths.Count) files to process." | Tee-Object -F
 
 # Параллельная обработка файлов
 $sourceFilePaths | ForEach-Object -Parallel {
-    # Определяем глобальные переменные для лога, синхронизации и настроек
+    # Определяем глобальные переменные
     $script:logFile = $using:logFile
     $script:lockObject = $using:lockObject
     $script:baseOutputPath = $using:baseOutputPath

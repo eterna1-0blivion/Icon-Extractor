@@ -184,5 +184,5 @@ public class IconExtractor
 
 
 # Уведомляем пользователя о завершении работы (Нажми Enter)
-Write-Host "`nThe script completed successfully." -ForegroundColor Green | Tee-Object -FilePath $logFile -Append
+Write-Host "`nThe script completed successfully." -ForegroundColor Green
 Invoke-Expression $exit

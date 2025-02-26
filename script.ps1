@@ -41,9 +41,12 @@ Write-Output "Found $($sourceFilePaths.Count) files to process." | Tee-Object -F
 
 # Параллельная обработка файлов
 $sourceFilePaths | ForEach-Object -Parallel {
-    # Определяем глобальные переменные для лога и синхронизации
+    # Определяем глобальные переменные для лога, синхронизации и настроек
     $script:logFile = $using:logFile
     $script:lockObject = $using:lockObject
+    $script:baseOutputPath = $using:baseOutputPath
+    $script:iconsLimit = $using:iconsLimit
+    $script:logLevel = $using:logLevel
 
     # Определяем класс IconExtractor внутри блока
     Add-Type -TypeDefinition @"
@@ -96,21 +99,18 @@ public class IconExtractor
     # Определяем функцию Get-Icons внутри блока
     function Get-Icons {
         param (
-            [string]$filePath,
-            [string]$outputFolder,
-            [int]$maxIcons,
-            [ValidateSet("Output", "Verbose", "Debug")]
-            [string]$logLevel
+            [string]$filePath
         )
 
         # Создаём выходные папки, если их нет
+        $outputFolder = "$script:baseOutputPath\$([System.IO.Path]::GetExtension($filePath).TrimStart('.'))"
         if (-not (Test-Path $outputFolder)) {
             New-Item -ItemType Directory -Path $outputFolder | Out-Null
         }
 
         # Предварительная проверка первых трёх индексов
         $hasIcons = $false
-        for ($i = 0; $i -lt [math]::Min(3, $maxIcons); $i++) {
+        for ($i = 0; $i -lt [math]::Min(3, $script:iconsLimit); $i++) {
             try {
                 $icon = [IconExtractor]::Extract($filePath, $i)
                 if ($null -ne $icon) {
@@ -119,7 +119,7 @@ public class IconExtractor
                 }
             }
             catch {
-                if ($logLevel -eq "Debug") {
+                if ($script:logLevel -eq "Debug") {
                     Write-Log -Message "Error checking index $i for $filePath : $_" -Type "Warning"
                 }
             }
@@ -134,7 +134,7 @@ public class IconExtractor
         # Полная обработка файла с динамической остановкой
         $extractedCount = 0
         $consecutiveNulls = 0
-        for ($i = 0; $i -lt $maxIcons; $i++) {
+        for ($i = 0; $i -lt $script:iconsLimit; $i++) {
             try {
                 $icon = [IconExtractor]::Extract($filePath, $i)
                 if ($null -ne $icon) {
@@ -153,11 +153,11 @@ public class IconExtractor
                 }
                 else {
                     $consecutiveNulls++
-                    if ($logLevel -eq "Debug") {
+                    if ($script:logLevel -eq "Debug") {
                         Write-Log -Message "No icon at index $i for $filePath" -Type "Output"
                     }
                     if ($consecutiveNulls -ge 3) {
-                        if ($logLevel -eq "Verbose" -or $logLevel -eq "Debug") {
+                        if ($script:logLevel -eq "Verbose" -or $script:logLevel -eq "Debug") {
                             Write-Log -Message "Stopped at index $i for $filePath (3 consecutive nulls)" -Type "Output"
                         }
                         break
@@ -168,7 +168,7 @@ public class IconExtractor
                 Write-Log -Message "Error extracting icon $i from $filePath : $_" -Type "Warning"
                 $consecutiveNulls++
                 if ($consecutiveNulls -ge 3) {
-                    if ($logLevel -eq "Verbose" -or $logLevel -eq "Debug") {
+                    if ($script:logLevel -eq "Verbose" -or $script:logLevel -eq "Debug") {
                         Write-Log -Message "Stopped at index $i for $filePath (3 consecutive nulls after error)" -Type "Output"
                     }
                     break
@@ -178,17 +178,8 @@ public class IconExtractor
         Write-Log -Message "Extracted $extractedCount icons from $filePath" -Type "Output"
     }
 
-    # Передаём внешние переменные
-    $logFile = $using:logFile
-    $baseOutputPath = $using:baseOutputPath
-    $iconsLimit = $using:iconsLimit
-    $logLevel = $using:logLevel
-    $lockObject = $using:lockObject
-
     $path = $_
-    $extension = [System.IO.Path]::GetExtension($path).TrimStart('.')
-    $outputPath = "$baseOutputPath\$extension"
-    Get-Icons -filePath $path -outputFolder $outputPath -maxIcons $iconsLimit -logLevel $logLevel
+    Get-Icons -filePath $path
 } -ThrottleLimit $parallelThreads
 
 

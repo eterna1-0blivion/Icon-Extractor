@@ -83,7 +83,8 @@ public class IconExtractor
                 Write-Output $Message | Tee-Object -FilePath $LogFile -Append
             }
             elseif ($Type -eq "Warning") {
-                Write-Output "WARNING: $Message" -ForegroundColor Yellow | Tee-Object -FilePath $LogFile -Append
+                Write-Warning $Message
+                "WARNING: $Message" | Out-File -FilePath $LogFile -Append -Encoding UTF8
             }
         }
         finally {

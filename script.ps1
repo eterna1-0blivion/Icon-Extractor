@@ -21,7 +21,6 @@ $baseOutputPath = "$PSScriptRoot\out"
 $logFile = "$PSScriptRoot\log.txt"
 $lockObject = [Object]::new()
 
-
 # Для правильной работы отладки
 if ($logLevel -eq "Debug") { Set-PSDebug -Trace 0 } else { Set-PSDebug -Off }
 
@@ -42,6 +41,10 @@ Write-Output "Found $($sourceFilePaths.Count) files to process." | Tee-Object -F
 
 # Параллельная обработка файлов
 $sourceFilePaths | ForEach-Object -Parallel {
+    # Определяем глобальные переменные для лога и синхронизации
+    $script:logFile = $using:logFile
+    $script:lockObject = $using:lockObject
+
     # Определяем класс IconExtractor внутри блока
     Add-Type -TypeDefinition @"
 using System;
@@ -73,22 +76,20 @@ public class IconExtractor
         param (
             [string]$Message,
             [ValidateSet("Output", "Warning")]
-            [string]$Type = "Output",
-            [string]$LogFile,
-            [object]$LockObject
+            [string]$Type = "Output"
         )
-        [System.Threading.Monitor]::Enter($LockObject)
+        [System.Threading.Monitor]::Enter($script:lockObject)
         try {
             if ($Type -eq "Output") {
-                Write-Output $Message | Tee-Object -FilePath $LogFile -Append
+                Write-Output $Message | Tee-Object -FilePath $script:logFile -Append
             }
             elseif ($Type -eq "Warning") {
                 Write-Warning $Message
-                "WARNING: $Message" | Out-File -FilePath $LogFile -Append -Encoding UTF8
+                "WARNING: $Message" | Out-File -FilePath $script:logFile -Append -Encoding UTF8
             }
         }
         finally {
-            [System.Threading.Monitor]::Exit($LockObject)
+            [System.Threading.Monitor]::Exit($script:lockObject)
         }
     }
 
@@ -99,9 +100,7 @@ public class IconExtractor
             [string]$outputFolder,
             [int]$maxIcons,
             [ValidateSet("Output", "Verbose", "Debug")]
-            [string]$logLevel,
-            [string]$logFile,
-            [object]$lockObject
+            [string]$logLevel
         )
 
         # Создаём выходные папки, если их нет
@@ -121,14 +120,14 @@ public class IconExtractor
             }
             catch {
                 if ($logLevel -eq "Debug") {
-                    Write-Log -Message "Error checking index $i for $filePath : $_" -Type "Warning" -LogFile $logFile -LockObject $lockObject
+                    Write-Log -Message "Error checking index $i for $filePath : $_" -Type "Warning"
                 }
             }
         }
 
         # Если иконок нет на первых трёх индексах, пропускаем файл
         if (-not $hasIcons) {
-            Write-Log -Message "Skipped: $filePath (no icons detected in first 3 indexes)" -Type "Output" -LogFile $logFile -LockObject $lockObject
+            Write-Log -Message "Skipped: $filePath (no icons detected in first 3 indexes)" -Type "Output"
             return
         }
 
@@ -146,37 +145,37 @@ public class IconExtractor
                         $icon.Save($fileStream)
                         $fileStream.Close()
                         $extractedCount++
-                        Write-Log -Message "Saved: $iconPath" -Type "Output" -LogFile $logFile -LockObject $lockObject
+                        Write-Log -Message "Saved: $iconPath" -Type "Output"
                     }
                     catch {
-                        Write-Log -Message "Failed to save icon $i for $filePath : $_" -Type "Warning" -LogFile $logFile -LockObject $lockObject
+                        Write-Log -Message "Failed to save icon $i for $filePath : $_" -Type "Warning"
                     }
                 }
                 else {
                     $consecutiveNulls++
                     if ($logLevel -eq "Debug") {
-                        Write-Log -Message "No icon at index $i for $filePath" -Type "Output" -LogFile $logFile -LockObject $lockObject
+                        Write-Log -Message "No icon at index $i for $filePath" -Type "Output"
                     }
                     if ($consecutiveNulls -ge 3) {
                         if ($logLevel -eq "Verbose" -or $logLevel -eq "Debug") {
-                            Write-Log -Message "Stopped at index $i for $filePath (3 consecutive nulls)" -Type "Output" -LogFile $logFile -LockObject $lockObject
+                            Write-Log -Message "Stopped at index $i for $filePath (3 consecutive nulls)" -Type "Output"
                         }
                         break
                     }
                 }
             }
             catch {
-                Write-Log -Message "Error extracting icon $i from $filePath : $_" -Type "Warning" -LogFile $logFile -LockObject $lockObject
+                Write-Log -Message "Error extracting icon $i from $filePath : $_" -Type "Warning"
                 $consecutiveNulls++
                 if ($consecutiveNulls -ge 3) {
                     if ($logLevel -eq "Verbose" -or $logLevel -eq "Debug") {
-                        Write-Log -Message "Stopped at index $i for $filePath (3 consecutive nulls after error)" -Type "Output" -LogFile $logFile -LockObject $lockObject
+                        Write-Log -Message "Stopped at index $i for $filePath (3 consecutive nulls after error)" -Type "Output"
                     }
                     break
                 }
             }
         }
-        Write-Log -Message "Extracted $extractedCount icons from $filePath" -Type "Output" -LogFile $logFile -LockObject $lockObject
+        Write-Log -Message "Extracted $extractedCount icons from $filePath" -Type "Output"
     }
 
     # Передаём внешние переменные
@@ -189,7 +188,7 @@ public class IconExtractor
     $path = $_
     $extension = [System.IO.Path]::GetExtension($path).TrimStart('.')
     $outputPath = "$baseOutputPath\$extension"
-    Get-Icons -filePath $path -outputFolder $outputPath -maxIcons $iconsLimit -logLevel $logLevel -logFile $logFile -lockObject $lockObject
+    Get-Icons -filePath $path -outputFolder $outputPath -maxIcons $iconsLimit -logLevel $logLevel
 } -ThrottleLimit $parallelThreads
 
 

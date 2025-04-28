@@ -21,9 +21,6 @@ $baseOutputPath = "$PSScriptRoot\out"
 $logFile = "$PSScriptRoot\log.txt"
 $lockObject = [Object]::new()
 
-# Для правильной работы отладки
-if ($logLevel -eq "Debug") { Set-PSDebug -Trace 0 } else { Set-PSDebug -Off }
-
 # Очистка логов и выходных папок
 if (Test-Path $logFile) { Remove-Item $logFile -Force }
 if (Test-Path $baseOutputPath) {

@@ -105,29 +105,6 @@ public class IconExtractor
             New-Item -ItemType Directory -Path $outputFolder | Out-Null
         }
 
-        # Предварительная проверка первых трёх индексов
-        $hasIcons = $false
-        for ($i = 0; $i -lt [math]::Min(3, $script:iconsLimit); $i++) {
-            try {
-                $icon = [IconExtractor]::Extract($filePath, $i)
-                if ($null -ne $icon) {
-                    $hasIcons = $true
-                    break
-                }
-            }
-            catch {
-                if ($script:logLevel -eq "Debug") {
-                    Write-Log -Message "Error checking index $i for $filePath : $_" -Type "Warning"
-                }
-            }
-        }
-
-        # Если иконок нет на первых трёх индексах, пропускаем файл
-        if (-not $hasIcons) {
-            Write-Log -Message "Skipped: $filePath (no icons detected in first 3 indexes)" -Type "Output"
-            return
-        }
-
         # Полная обработка файла с динамической остановкой
         $extractedCount = 0
         $consecutiveNulls = 0

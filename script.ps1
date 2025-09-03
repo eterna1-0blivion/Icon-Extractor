@@ -1,7 +1,7 @@
 # author: eterna1_0blivion
-$version = 'v0.5.1'
+$version = 'v0.5.2'
 
-# Некоторые предустановки
+# Некоторые пред-установки
 $theme = '$Host.UI.RawUI.BackgroundColor = "Black"; $Host.UI.RawUI.ForegroundColor = "Gray"; Clear-Host'
 $exit = 'Read-Host -Prompt "Press Enter to exit"; Break'
 
@@ -45,7 +45,7 @@ $sourceFilePaths | ForEach-Object -Parallel {
     $script:iconsLimit = $using:iconsLimit
     $script:logLevel = $using:logLevel
 
-    # Определяем класс IconExtractor внутри блока
+    # Определяем класс IconExtractor внутри блока кодом C#
     Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
@@ -72,6 +72,7 @@ public class IconExtractor
 "@ -Language CSharp -ReferencedAssemblies "System.Drawing.Common" -ErrorAction SilentlyContinue
 
     # Функция для синхронизированной записи в лог и консоль
+    # TODO: Сделать функцию записи в лог тоже параллельной, с объединением в конце.
     function Write-Log {
         param (
             [string]$Message,
@@ -80,6 +81,7 @@ public class IconExtractor
         )
         [System.Threading.Monitor]::Enter($script:lockObject)
         try {
+            # Определяем тип сообщения - обычное или ошибка
             if ($Type -eq "Output") {
                 Write-Output $Message | Tee-Object -FilePath $script:logFile -Append
             }
@@ -106,14 +108,17 @@ public class IconExtractor
         }
 
         # Полная обработка файла с динамической остановкой
+        # TODO: Предотвратить одновременную обработку одного и того же файла несколькими процессами (видно в логе)
         $extractedCount = 0
         $consecutiveNulls = 0
         for ($i = 0; $i -lt $script:iconsLimit; $i++) {
             try {
+                # Пробуем вытащить иконку из файла
                 $icon = [IconExtractor]::Extract($filePath, $i)
                 if ($null -ne $icon) {
                     $consecutiveNulls = 0
                     $iconPath = Join-Path -Path $outputFolder -ChildPath "$(Split-Path -Leaf $filePath)_icon_$i.ico"
+                    # Основной процесс параллельной обработки файлов
                     try {
                         $fileStream = [System.IO.File]::OpenWrite($iconPath)
                         $icon.Save($fileStream)
@@ -125,11 +130,13 @@ public class IconExtractor
                         Write-Log -Message "Failed to save icon $i for $filePath : $_" -Type "Warning"
                     }
                 }
+                # Накопление счётчика "не нахождения" иконок
                 else {
                     $consecutiveNulls++
                     if ($script:logLevel -eq "Debug") {
                         Write-Log -Message "No icon at index $i for $filePath" -Type "Output"
                     }
+                    # Если не находим иконок три раза подряд, прекращаем обработку файла
                     if ($consecutiveNulls -ge 3) {
                         if ($script:logLevel -eq "Verbose" -or $script:logLevel -eq "Debug") {
                             Write-Log -Message "Stopped at index $i for $filePath (3 consecutive nulls)" -Type "Output"
@@ -138,6 +145,7 @@ public class IconExtractor
                     }
                 }
             }
+            # В случае трех ошибок в извлечении иконок, так же прекращаем обработку
             catch {
                 Write-Log -Message "Error extracting icon $i from $filePath : $_" -Type "Warning"
                 $consecutiveNulls++
@@ -149,6 +157,7 @@ public class IconExtractor
                 }
             }
         }
+        # При завершении обработки файла, сообщаем о кол-ве извлеченных иконок
         Write-Log -Message "Extracted $extractedCount icons from $filePath" -Type "Output"
     }
 

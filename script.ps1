@@ -27,6 +27,10 @@ if (Test-Path $baseOutputPath) {
     Get-ChildItem -Path $baseOutputPath -Recurse -File | Remove-Item -Force -ErrorAction SilentlyContinue
 }
 
+# Создаем concurrent структуры для параллельной работы
+$logQueue = [System.Collections.Concurrent.ConcurrentQueue[string]]::new()
+$processed = [System.Collections.Concurrent.ConcurrentDictionary[string, bool]]::new()
+
 # Определяем класс IconExtractor вне параллельного блока
 Add-Type -TypeDefinition @"
 using System;
@@ -101,6 +105,12 @@ $sourceFilePaths | ForEach-Object -Parallel {
             [string]$filePath
         )
 
+        # Предотвращаем одновременную обработку одного и того же файла
+        if (!$script:processed.TryAdd($filePath.ToLower(), $true)) {
+            Write-Log -Message "Skipping already processed file: $filePath" -Type "Warning"
+            return
+        }
+
         # Создаём выходные папки, если их нет
         $outputFolder = "$script:baseOutputPath\$([System.IO.Path]::GetExtension($filePath).TrimStart('.'))"
         if (-not (Test-Path $outputFolder)) {
@@ -108,7 +118,6 @@ $sourceFilePaths | ForEach-Object -Parallel {
         }
 
         # Полная обработка файла с динамической остановкой
-        # TODO: Предотвратить одновременную обработку одного и того же файла несколькими процессами (видно в логе)
         $extractedCount = 0
         $consecutiveNulls = 0
         for ($i = 0; $i -lt $script:iconsLimit; $i++) {

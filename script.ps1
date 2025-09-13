@@ -1,5 +1,5 @@
 # author: eterna1_0blivion
-$version = 'v0.5.2'
+$version = 'v0.6.0'
 
 # Некоторые пред-установки
 $theme = '$Host.UI.RawUI.BackgroundColor = "Black"; $Host.UI.RawUI.ForegroundColor = "Gray"; Clear-Host'
@@ -81,10 +81,10 @@ $sourceFilePaths | ForEach-Object -Parallel {
             [ValidateSet("Output", "Warning")]
             [string]$Type = "Output"
         )
-            if ($Type -eq "Output") {
+        if ($Type -eq "Output") {
             Write-Output $Message; $script:logQueue.Enqueue($Message)
-            }
-            elseif ($Type -eq "Warning") {
+        }
+        elseif ($Type -eq "Warning") {
             Write-Warning $Message; $script:logQueue.Enqueue("WARNING: $Message")
         }
     }

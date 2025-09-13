@@ -14,6 +14,7 @@ Write-Host "`nScript running..." -ForegroundColor White
 # Настройки
 $sourcePath = "C:"
 $sourceExtensions = @('dll', 'exe', 'mun')
+#TODO: определять потоки динамически, в зависимости от кол-ва ядер CPU (или дать возможность пользователю указать вручную)
 $parallelThreads = 16
 $iconsLimit = 512
 $logLevel = "Debug" # ["Output"/"Verbose"/"Debug"]
@@ -57,6 +58,7 @@ public class IconExtractor
 "@ -Language CSharp -ReferencedAssemblies "System.Drawing.Common" -ErrorAction SilentlyContinue
 
 # Определение нужных файлов
+#TODO: искать нужные файлы в параллельном режиме, попробовать использовать индексирование из сторонних источников (программа Everything)
 $sourceFilePaths = New-Object System.Collections.Generic.List[string]
 foreach ($extension in $sourceExtensions) {
     Write-Output "Scanning for `'.$extension`' files..." | Tee-Object -FilePath $logFile -Append

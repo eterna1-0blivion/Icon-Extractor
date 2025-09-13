@@ -19,7 +19,6 @@ $iconsLimit = 512
 $logLevel = "Debug" # ["Output"/"Verbose"/"Debug"]
 $baseOutputPath = "$PSScriptRoot\out"
 $logFile = "$PSScriptRoot\log.txt"
-$lockObject = [Object]::new()
 
 # Очистка логов и выходных папок
 if (Test-Path $logFile) { Remove-Item $logFile -Force }
@@ -69,33 +68,24 @@ Write-Output "Found $($sourceFilePaths.Count) files to process." | Tee-Object -F
 # Параллельная обработка файлов
 $sourceFilePaths | ForEach-Object -Parallel {
     # Определяем глобальные переменные
-    $script:logFile = $using:logFile
-    $script:lockObject = $using:lockObject
+    $script:logQueue = $using:logQueue
+    $script:processed = $using:processed
     $script:baseOutputPath = $using:baseOutputPath
     $script:iconsLimit = $using:iconsLimit
     $script:logLevel = $using:logLevel
 
-    # Функция для синхронизированной записи в лог и консоль
-    # TODO: Сделать функцию записи в лог тоже параллельной, с объединением в конце.
+    # Функция для записи в лог (параллельная, с использованием очереди)
     function Write-Log {
         param (
             [string]$Message,
             [ValidateSet("Output", "Warning")]
             [string]$Type = "Output"
         )
-        [System.Threading.Monitor]::Enter($script:lockObject)
-        try {
-            # Определяем тип сообщения - обычное или ошибка
             if ($Type -eq "Output") {
-                Write-Output $Message | Tee-Object -FilePath $script:logFile -Append
+            Write-Output $Message; $script:logQueue.Enqueue($Message)
             }
             elseif ($Type -eq "Warning") {
-                Write-Warning $Message
-                "WARNING: $Message" | Out-File -FilePath $script:logFile -Append -Encoding UTF8
-            }
-        }
-        finally {
-            [System.Threading.Monitor]::Exit($script:lockObject)
+            Write-Warning $Message; $script:logQueue.Enqueue("WARNING: $Message")
         }
     }
 
@@ -174,6 +164,11 @@ $sourceFilePaths | ForEach-Object -Parallel {
     Get-Icons -filePath $path
 } -ThrottleLimit $parallelThreads
 
+# Сливаем логи из очереди в файл
+$msg = $null
+while ($logQueue.TryDequeue([ref]$msg)) {
+    $msg | Out-File -FilePath $logFile -Append -Encoding UTF8
+}
 
 # Уведомляем пользователя о завершении работы (Нажми Enter)
 Write-Host "`nThe script completed successfully." -ForegroundColor Green

@@ -27,26 +27,8 @@ if (Test-Path $baseOutputPath) {
     Get-ChildItem -Path $baseOutputPath -Recurse -File | Remove-Item -Force -ErrorAction SilentlyContinue
 }
 
-# Определение нужных файлов
-$sourceFilePaths = New-Object System.Collections.Generic.List[string]
-foreach ($extension in $sourceExtensions) {
-    Write-Output "Scanning for `'.$extension`' files..." | Tee-Object -FilePath $logFile -Append
-    (Get-ChildItem -Path $sourcePath -Filter "*.$extension" -Recurse -Force -ErrorAction SilentlyContinue | 
-    Select-Object -ExpandProperty FullName) | ForEach-Object { $sourceFilePaths.Add($_) }
-}
-Write-Output "Found $($sourceFilePaths.Count) files to process." | Tee-Object -FilePath $logFile -Append
-
-# Параллельная обработка файлов
-$sourceFilePaths | ForEach-Object -Parallel {
-    # Определяем глобальные переменные
-    $script:logFile = $using:logFile
-    $script:lockObject = $using:lockObject
-    $script:baseOutputPath = $using:baseOutputPath
-    $script:iconsLimit = $using:iconsLimit
-    $script:logLevel = $using:logLevel
-
-    # Определяем класс IconExtractor внутри блока кодом C#
-    Add-Type -TypeDefinition @"
+# Определяем класс IconExtractor вне параллельного блока
+Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
 using System.Drawing;
@@ -70,6 +52,24 @@ public class IconExtractor
     }
 }
 "@ -Language CSharp -ReferencedAssemblies "System.Drawing.Common" -ErrorAction SilentlyContinue
+
+# Определение нужных файлов
+$sourceFilePaths = New-Object System.Collections.Generic.List[string]
+foreach ($extension in $sourceExtensions) {
+    Write-Output "Scanning for `'.$extension`' files..." | Tee-Object -FilePath $logFile -Append
+    (Get-ChildItem -Path $sourcePath -Filter "*.$extension" -Recurse -Force -ErrorAction SilentlyContinue | 
+    Select-Object -ExpandProperty FullName) | ForEach-Object { $sourceFilePaths.Add($_) }
+}
+Write-Output "Found $($sourceFilePaths.Count) files to process." | Tee-Object -FilePath $logFile -Append
+
+# Параллельная обработка файлов
+$sourceFilePaths | ForEach-Object -Parallel {
+    # Определяем глобальные переменные
+    $script:logFile = $using:logFile
+    $script:lockObject = $using:lockObject
+    $script:baseOutputPath = $using:baseOutputPath
+    $script:iconsLimit = $using:iconsLimit
+    $script:logLevel = $using:logLevel
 
     # Функция для синхронизированной записи в лог и консоль
     # TODO: Сделать функцию записи в лог тоже параллельной, с объединением в конце.

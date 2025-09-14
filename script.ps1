@@ -1,5 +1,6 @@
 # author: eterna1_0blivion
 $version = 'v0.6.2-dev'
+$version = 'v0.6.2-dev'
 
 # Некоторые пред-установки
 $theme = '$Host.UI.RawUI.BackgroundColor = "Black"; $Host.UI.RawUI.ForegroundColor = "Gray"; Clear-Host'
@@ -66,6 +67,7 @@ public class IconExtractor
 }
 "@ -Language CSharp -ReferencedAssemblies "System.Drawing.Common" -ErrorAction SilentlyContinue
 
+# Определение нужных файлов (Параллельный поиск + интеграция Everything)
 # Определение нужных файлов (Параллельный поиск + интеграция Everything)
 $sourceFilePaths = New-Object System.Collections.Generic.List[string]
 

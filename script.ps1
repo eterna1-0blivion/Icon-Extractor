@@ -1,5 +1,5 @@
 # author: eterna1_0blivion
-$version = 'v0.6.0'
+$version = 'v0.6.1'
 
 # Некоторые пред-установки
 $theme = '$Host.UI.RawUI.BackgroundColor = "Black"; $Host.UI.RawUI.ForegroundColor = "Gray"; Clear-Host'
@@ -10,15 +10,24 @@ $Host.UI.RawUI.WindowTitle = "Icons Extractor ($version)"
 Invoke-Expression $theme
 Write-Host "`nScript running..." -ForegroundColor White
 
-
 # Настройки
 $sourcePath = "C:"
 $sourceExtensions = @('dll', 'exe', 'mun')
-$parallelThreads = 16
 $iconsLimit = 512
+$threads = 0 # [если 0 - автоопределение]
 $logLevel = "Debug" # ["Output"/"Verbose"/"Debug"]
 $baseOutputPath = "$PSScriptRoot\out"
 $logFile = "$PSScriptRoot\log.txt"
+
+# Динамическое определение кол-ва параллельных потоков
+# Если не указан -Threads, определяем по числу ядер CPU
+if ($threads -eq 0) {
+    $parallelThreads = [Math]::Max(1, [Environment]::ProcessorCount / 2)
+    Write-Host "Auto-detected threads: $parallelThreads (based on CPU cores)" -ForegroundColor Yellow
+} else {
+    $parallelThreads = $threads
+    Write-Host "Using user-specified threads: $parallelThreads" -ForegroundColor Yellow
+}
 
 # Очистка логов и выходных папок
 if (Test-Path $logFile) { Remove-Item $logFile -Force }
@@ -57,6 +66,7 @@ public class IconExtractor
 "@ -Language CSharp -ReferencedAssemblies "System.Drawing.Common" -ErrorAction SilentlyContinue
 
 # Определение нужных файлов
+#TODO: искать нужные файлы в параллельном режиме, попробовать использовать индексирование из сторонних источников (программа Everything)
 $sourceFilePaths = New-Object System.Collections.Generic.List[string]
 foreach ($extension in $sourceExtensions) {
     Write-Output "Scanning for `'.$extension`' files..." | Tee-Object -FilePath $logFile -Append

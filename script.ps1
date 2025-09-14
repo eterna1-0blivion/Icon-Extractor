@@ -95,32 +95,6 @@ if ($useEverything) {
     }
 }
 
-
-# Проверяем наличие и работоспособность Everything CLI с указанным инстансом
-try {
-    if (& es -instance $instanceName ext:exe -n 1) {
-        $useEverything = $true
-        Write-Output "Using Everything ($instanceName) for fast file search." | Tee-Object -FilePath $logFile -Append
-    }
-} catch {
-    $useEverything = $false
-    Write-Output "Everything CLI or instance not available, falling back to Get-ChildItem." | Tee-Object -FilePath $logFile -Append
-}
-
-if ($useEverything) {
-    foreach ($extension in $sourceExtensions) {
-        Write-Output "Scanning for '.$extension' files with Everything..." | Tee-Object -FilePath $logFile -Append
-        # Поиск файлов с помощью Everything CLI
-        & es -instance $instanceName -p $sourcePath ext:$extension | ForEach-Object { $sourceFilePaths.Add($_) }
-    }
-} else {
-    foreach ($extension in $sourceExtensions) {
-        Write-Output "Scanning for '.$extension' files..." | Tee-Object -FilePath $logFile -Append
-        (Get-ChildItem -Path $sourcePath -Filter "*.$extension" -Recurse -Force -ErrorAction SilentlyContinue | 
-        Select-Object -ExpandProperty FullName) | ForEach-Object { $sourceFilePaths.Add($_) }
-    }
-}
-
 Write-Output "Found $($sourceFilePaths.Count) files to process." | Tee-Object -FilePath $logFile -Append
 
 # Параллельная обработка файлов

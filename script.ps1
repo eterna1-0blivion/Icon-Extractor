@@ -15,7 +15,6 @@ $sourcePath = "C:"
 $sourceExtensions = @('dll', 'exe', 'mun')
 $iconsLimit = 512
 $threads = 0 # [если 0 - автоопределение]
-$threads = 0 # [если 0 - автоопределение]
 $logLevel = "Debug" # ["Output"/"Verbose"/"Debug"]
 $baseOutputPath = "$PSScriptRoot\out"
 $logFile = "$PSScriptRoot\log.txt"

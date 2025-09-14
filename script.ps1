@@ -15,9 +15,11 @@ $sourcePath = "C:"
 $sourceExtensions = @('dll', 'exe', 'mun')
 $iconsLimit = 512
 $threads = 0 # [если 0 - автоопределение]
+$threads = 0 # [если 0 - автоопределение]
 $logLevel = "Debug" # ["Output"/"Verbose"/"Debug"]
 $baseOutputPath = "$PSScriptRoot\out"
 $logFile = "$PSScriptRoot\log.txt"
+$instanceName = "1.5a"  # Имя инстанса Everything (для альфы)
 
 # Динамическое определение кол-ва параллельных потоков
 # Если не указан -Threads, определяем по числу ядер CPU
@@ -67,6 +69,32 @@ public class IconExtractor
 
 # Определение нужных файлов (Параллельный поиск + интеграция Everything)
 $sourceFilePaths = New-Object System.Collections.Generic.List[string]
+
+# Проверяем наличие и работоспособность Everything CLI с указанным инстансом
+try {
+    if (& es -instance $instanceName ext:exe -n 1) {
+        $useEverything = $true
+        Write-Output "Using Everything ($instanceName) for fast file search." | Tee-Object -FilePath $logFile -Append
+    }
+} catch {
+    $useEverything = $false
+    Write-Output "Everything CLI or instance not available, falling back to Get-ChildItem." | Tee-Object -FilePath $logFile -Append
+}
+
+if ($useEverything) {
+    foreach ($extension in $sourceExtensions) {
+        Write-Output "Scanning for '.$extension' files with Everything..." | Tee-Object -FilePath $logFile -Append
+        # Поиск файлов с помощью Everything CLI
+        & es -instance $instanceName -p $sourcePath ext:$extension | ForEach-Object { $sourceFilePaths.Add($_) }
+    }
+} else {
+    foreach ($extension in $sourceExtensions) {
+        Write-Output "Scanning for '.$extension' files..." | Tee-Object -FilePath $logFile -Append
+        (Get-ChildItem -Path $sourcePath -Filter "*.$extension" -Recurse -Force -ErrorAction SilentlyContinue | 
+        Select-Object -ExpandProperty FullName) | ForEach-Object { $sourceFilePaths.Add($_) }
+    }
+}
+
 
 # Проверяем наличие и работоспособность Everything CLI с указанным инстансом
 try {

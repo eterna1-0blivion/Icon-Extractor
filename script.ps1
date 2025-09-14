@@ -10,16 +10,24 @@ $Host.UI.RawUI.WindowTitle = "Icons Extractor ($version)"
 Invoke-Expression $theme
 Write-Host "`nScript running..." -ForegroundColor White
 
-
 # Настройки
 $sourcePath = "C:"
 $sourceExtensions = @('dll', 'exe', 'mun')
-#TODO: определять потоки динамически, в зависимости от кол-ва ядер CPU (или дать возможность пользователю указать вручную)
-$parallelThreads = 16
 $iconsLimit = 512
+$threads = 0 # [если 0 - автоопределение]
 $logLevel = "Debug" # ["Output"/"Verbose"/"Debug"]
 $baseOutputPath = "$PSScriptRoot\out"
 $logFile = "$PSScriptRoot\log.txt"
+
+# Динамическое определение кол-ва параллельных потоков
+# Если не указан -Threads, определяем по числу ядер CPU
+if ($threads -eq 0) {
+    $parallelThreads = [Math]::Max(1, [Environment]::ProcessorCount / 2)
+    Write-Host "Auto-detected threads: $parallelThreads (based on CPU cores)" -ForegroundColor Yellow
+} else {
+    $parallelThreads = $threads
+    Write-Host "Using user-specified threads: $parallelThreads" -ForegroundColor Yellow
+}
 
 # Очистка логов и выходных папок
 if (Test-Path $logFile) { Remove-Item $logFile -Force }

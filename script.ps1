@@ -1,5 +1,5 @@
 # author: eterna1_0blivion
-$version = 'v0.6.1'
+$version = 'v0.6.2-dev'
 
 # Некоторые пред-установки
 $theme = '$Host.UI.RawUI.BackgroundColor = "Black"; $Host.UI.RawUI.ForegroundColor = "Gray"; Clear-Host'
@@ -65,14 +65,26 @@ public class IconExtractor
 }
 "@ -Language CSharp -ReferencedAssemblies "System.Drawing.Common" -ErrorAction SilentlyContinue
 
-# Определение нужных файлов
-#TODO: искать нужные файлы в параллельном режиме, попробовать использовать индексирование из сторонних источников (программа Everything)
+# Определение нужных файлов (Параллельный поиск + интеграция Everything)
 $sourceFilePaths = New-Object System.Collections.Generic.List[string]
-foreach ($extension in $sourceExtensions) {
-    Write-Output "Scanning for `'.$extension`' files..." | Tee-Object -FilePath $logFile -Append
-    (Get-ChildItem -Path $sourcePath -Filter "*.$extension" -Recurse -Force -ErrorAction SilentlyContinue | 
-    Select-Object -ExpandProperty FullName) | ForEach-Object { $sourceFilePaths.Add($_) }
+$everythingCommand = 'es -instance 1.5a'
+
+# Проверяем наличие Everything CLI (es.exe)
+if (& "$everythingCommand everything ext:exe") {
+    Write-Output "Using Everything for fast file search." | Tee-Object -FilePath $logFile -Append
+    foreach ($extension in $sourceExtensions) {
+        Write-Output "Scanning for '.$extension' files with Everything..." | Tee-Object -FilePath $logFile -Append
+        # Поиск файлов с помощью Everything
+        & "$everythingCommand -p $sourcePath ext:$extension" | ForEach-Object { $sourceFilePaths.Add($_) }
+    }
+} else {
+    foreach ($extension in $sourceExtensions) {
+        Write-Output "Scanning for `'.$extension`' files..." | Tee-Object -FilePath $logFile -Append
+        (Get-ChildItem -Path $sourcePath -Filter "*.$extension" -Recurse -Force -ErrorAction SilentlyContinue | 
+        Select-Object -ExpandProperty FullName) | ForEach-Object { $sourceFilePaths.Add($_) }
+    }
 }
+
 Write-Output "Found $($sourceFilePaths.Count) files to process." | Tee-Object -FilePath $logFile -Append
 
 # Параллельная обработка файлов
